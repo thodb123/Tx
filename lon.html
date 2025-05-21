@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dự đoán Tài Xỉu nâng cao</title>
+  <style>
+    /* Reset & cơ bản */
+    body {
+      background: #f9faff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0; padding: 20px;
+      color: #333;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    h1 {
+      text-align: center;
+      font-weight: 700;
+      color: #444;
+      margin-bottom: 20px;
+      user-select: none;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 25px 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgb(0 0 0 / 0.08);
+      user-select: none;
+    }
+    input[type=text] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 1.1rem;
+      border-radius: 12px;
+      border: 2px solid #d0d7de;
+      outline-offset: 2px;
+      outline-color: #6c63ff;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+    }
+    input[type=text]:focus {
+      border-color: #6c63ff;
+    }
+    button {
+      background: #6c63ff;
+      border: none;
+      padding: 12px 24px;
+      margin: 12px 6px 6px 6px;
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      border-radius: 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #554fd6;
+    }
+    .results,
+    /* .suggestion, */  /* Bỏ hiển thị gợi ý */
+    .ai-suggestion {
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.3rem;
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 14px;
+      user-select: text;
+      min-height: 50px;
+    }
+    .results {
+      font-size: 1.4rem;
+      letter-spacing: 0.1em;
+      user-select: all;
+    }
+    /* .suggestion.neutral, .suggestion.tai, .suggestion.xiu Ẩn luôn */
+    .ai-suggestion.neutral {
+      background: #e9e9ef;
+      color: #555;
+    }
+    .ai-suggestion.tai {
+      background: #d1e7dd;
+      color: #0f5132;
+      box-shadow: 0 0 8px #0f5132aa;
+    }
+    .ai-suggestion.xiu {
+      background: #f8d7da;
+      color: #842029;
+      box-shadow: 0 0 8px #842029aa;
+    }
+    .percent-bar {
+      height: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 15px;
+      user-select: none;
+      background: #ddd;
+      box-shadow: inset 0 0 5px #bbb;
+    }
+    .percent-fill {
+      height: 100%;
+      color: white;
+      font-weight: 700;
+      line-height: 24px;
+      padding-left: 10px;
+      white-space: nowrap;
+      user-select: none;
+      transition: width 0.8s ease;
+    }
+    .percent-tai {
+      background: #3b82f6;
+      box-shadow: 0 0 8px #3b82f6cc;
+    }
+    .percent-xiu {
+      background: #ef4444;
+      box-shadow: 0 0 8px #ef4444cc;
+    }
+    canvas {
+      margin-top: 25px;
+      width: 100% !important;
+      height: 180px !important;
+      user-select: none;
+    }
+    /* Nhập kết quả thắng thua */
+    #winLoseStats {
+      margin-top: 20px;
+      font-size: 1.15rem;
+      text-align: center;
+      color: #222;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    /* Responsive mobile */
+    @media (max-width: 540px) {
+      body {
+        padding: 10px 15px;
+      }
+      .container {
+        padding: 20px 20px 30px;
+        border-radius: 12px;
+      }
+      input[type=text] {
+        font-size: 1rem;
+        padding: 12px 14px;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 0.95rem;
+      }
+      .results,
+      /* .suggestion, */
+      .ai-suggestion {
+        font-size: 1.1rem;
+        padding: 10px 8px;
+      }
+      canvas {
+        height: 140px !important;
+      }
+    }
+  </style>
+</head>
+<!-- Lưu ý: Chỉ hiển thị phần BODY và SCRIPT dưới đây để gọn, phần HEAD giữ nguyên như bản gốc -->
+
+<body>
+  <h1>Dự đoán Tài Xỉu nâng cao</h1>
+  <div class="container">
+    <!-- Nhập chuỗi T/X -->
+    <label for="inputResults" style="font-weight:600;">Nhập chuỗi kết quả gần đây (T hoặc X):</label>
+    <input type="text" id="inputResults" maxlength="100" placeholder="Ví dụ: TXTXTTXX" autocomplete="off" />
+    <div class="results" id="results">Chuỗi kết quả sẽ hiện ở đây</div>
+    <div class="ai-suggestion neutral" id="aiSuggestion">Dự đoán AI sẽ hiển thị ở đây</div>
+    <div class="percent-bar"><div class="percent-fill percent-tai" id="percentTai" style="width: 0%;">0%</div></div>
+    <div class="percent-bar"><div class="percent-fill percent-xiu" id="percentXiu" style="width: 0%;">0%</div></div>
+    <canvas id="chart"></canvas>
+
+    <div style="text-align:center;">
+      <button onclick="resetAll()">Reset toàn bộ</button>
+    </div>
+
+    <!-- Nhập kết quả Win/Lose -->
+    <div style="margin-top:30px; border-top: 1px solid #eee; padding-top: 20px;">
+      <h3 style="text-align:center; color:#444; font-weight:600; margin-bottom:15px;">Nhập kết quả thắng/thua dự đoán</h3>
+      <div style="text-align:center; margin-bottom: 10px;">
+        <input type="text" id="inputWinLose" placeholder="Nhập chuỗi W (đúng) hoặc L (sai), ví dụ: WWLWL" maxlength="30"
+          style="width: 80%; max-width: 350px; padding: 10px; border-radius: 8px; border: 1.5px solid #ccc; font-size: 1rem;" autocomplete="off"
+        />
+      </div>
+      <div style="text-align:center;">
+        <button onclick="resetWinLose()">Reset thắng thua</button>
+      </div>
+      <div id="winLoseStats">Tổng dự đoán: 0 | Đúng: 0 | Sai: 0 | Tỷ lệ đúng: 0%</div>
+    </div>
+
+    <!-- Lịch sử dự đoán -->
+    <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
+      <h3 style="text-align:center; color:#444; font-weight:600; margin-bottom:15px;">Lịch sử dự đoán AI</h3>
+      <div id="historyLog" style="font-size:0.95rem; max-height:250px; overflow:auto; background:#f1f3f6; padding:10px; border-radius:8px;"></div>
+      <div style="text-align:center; margin-top:10px;">
+        <button onclick="clearHistory()">Xoá lịch sử dự đoán</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const inputEl = document.getElementById('inputResults');
+    const resultsEl = document.getElementById('results');
+    const aiSuggestionEl = document.getElementById('aiSuggestion');
+    const percentTaiEl = document.getElementById('percentTai');
+    const percentXiuEl = document.getElementById('percentXiu');
+    const inputWinLoseEl = document.getElementById('inputWinLose');
+    const winLoseStatsEl = document.getElementById('winLoseStats');
+    const historyLogEl = document.getElementById('historyLog');
+
+    const maxDisplayResults = 20;
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Tài', backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 6, data: [] },
+          { label: 'Xỉu', backgroundColor: 'rgba(239, 68, 68, 0.8)', borderRadius: 6, data: [] },
+        ],
+      },
+      options: {
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true, max: 1, ticks: { stepSize: 1, callback: v => (v === 1 ? 'Có' : '') }, grid: { color: '#eee' } },
+          x: { grid: { display: false } },
+        },
+        plugins: {
+          legend: { labels: { font: { size: 14, weight: '600' }, color: '#555' } },
+          tooltip: {
+            callbacks: {
+              label: context => context.dataset.label + ': ' + (context.parsed.y === 1 ? 'Có' : 'Không'),
+            },
+          },
+        },
+      },
+    });
+
+    function aiPredict(results) {
+      const countTai = [...results].filter(c => c === 'T').length;
+      const countXiu = [...results].filter(c => c === 'X').length;
+      const total = countTai + countXiu;
+      if (total === 0) return { prediction: 'NEUTRAL', confidence: 0.5 };
+      const probTai = countTai / total;
+      const probXiu = countXiu / total;
+      if (probTai > probXiu) return { prediction: 'TAI', confidence: probTai };
+      else if (probXiu > probTai) return { prediction: 'XIU', confidence: probXiu };
+      else return { prediction: 'NEUTRAL', confidence: 0.5 };
+    }
+
+    function updateAISuggestion(results) {
+      const { prediction, confidence } = aiPredict(results);
+      const confidencePct = Math.round(confidence * 100);
+      aiSuggestionEl.className = 'ai-suggestion neutral';
+      let text = '';
+      if (prediction === 'TAI') {
+        text = `AI dự đoán: Tài với ${confidencePct}%`;
+        aiSuggestionEl.classList.replace('neutral', 'tai');
+      } else if (prediction === 'XIU') {
+        text = `AI dự đoán: Xỉu với ${confidencePct}%`;
+        aiSuggestionEl.classList.replace('neutral', 'xiu');
+      } else {
+        text = 'AI dự đoán: Trung lập (khó đoán)';
+      }
+      aiSuggestionEl.textContent = text;
+      addToHistory(results, prediction, confidencePct);
+    }
+
+    function updatePercentBars(results) {
+      const countTai = [...results].filter(c => c === 'T').length;
+      const countXiu = [...results].filter(c => c === 'X').length;
+      const total = countTai + countXiu;
+      const percentTai = total ? Math.round((countTai / total) * 100) : 0;
+      const percentXiu = total ? Math.round((countXiu / total) * 100) : 0;
+      percentTaiEl.style.width = percentTai + '%';
+      percentTaiEl.textContent = percentTai + '%';
+      percentXiuEl.style.width = percentXiu + '%';
+      percentXiuEl.textContent = percentXiu + '%';
+    }
+
+    function updateChart(results) {
+      const recentResults = results.slice(-maxDisplayResults).split('');
+      chart.data.labels = recentResults.map((_, i) => i + 1);
+      chart.data.datasets[0].data = recentResults.map(c => (c === 'T' ? 1 : 0));
+      chart.data.datasets[1].data = recentResults.map(c => (c === 'X' ? 1 : 0));
+      chart.update();
+    }
+
+    function updateResults() {
+      const results = inputEl.value.toUpperCase().replace(/[^TX]/g, '');
+      inputEl.value = results;
+      localStorage.setItem('tx_results', results);
+      if (!results) {
+        resultsEl.textContent = 'Chuỗi kết quả sẽ hiện ở đây';
+        aiSuggestionEl.textContent = 'Dự đoán AI sẽ hiển thị ở đây';
+        aiSuggestionEl.className = 'ai-suggestion neutral';
+        percentTaiEl.style.width = '0%'; percentTaiEl.textContent = '0%';
+        percentXiuEl.style.width = '0%'; percentXiuEl.textContent = '0%';
+        chart.data.labels = []; chart.data.datasets[0].data = []; chart.data.datasets[1].data = []; chart.update();
+        return;
+      }
+      resultsEl.textContent = results;
+      updateAISuggestion(results);
+      updatePercentBars(results);
+      updateChart(results);
+    }
+
+    function resetAll() {
+      inputEl.value = '';
+      localStorage.removeItem('tx_results');
+      resetWinLose();
+      clearHistory();
+      updateResults();
+    }
+
+    function updateWinLose() {
+      const wl = inputWinLoseEl.value.toUpperCase().replace(/[^WL]/g, '');
+      inputWinLoseEl.value = wl;
+      localStorage.setItem('win_lose', wl);
+      const total = wl.length;
+      const wins = [...wl].filter(c => c === 'W').length;
+      const loses = [...wl].filter(c => c === 'L').length;
+      const rate = total ? Math.round((wins / total) * 100) : 0;
+      winLoseStatsEl.textContent = `Tổng dự đoán: ${total} | Đúng: ${wins} | Sai: ${loses} | Tỷ lệ đúng: ${rate}%`;
+    }
+
+    function resetWinLose() {
+      inputWinLoseEl.value = '';
+      localStorage.removeItem('win_lose');
+      winLoseStatsEl.textContent = 'Tổng dự đoán: 0 | Đúng: 0 | Sai: 0 | Tỷ lệ đúng: 0%';
+    }
+
+    // --- LỊCH SỬ DỰ ĐOÁN ---
+    function addToHistory(results, prediction, confidencePct) {
+      const now = new Date().toLocaleString();
+      const entry = `[${now}] Chuỗi: ${results} → Dự đoán: ${prediction} (${confidencePct}%)`;
+      let history = JSON.parse(localStorage.getItem('ai_history') || '[]');
+      history.unshift(entry);
+      if (history.length > 50) history = history.slice(0, 50);
+      localStorage.setItem('ai_history', JSON.stringify(history));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = JSON.parse(localStorage.getItem('ai_history') || '[]');
+      historyLogEl.innerHTML = history.map(h => `<div style="margin:4px 0;">${h}</div>`).join('');
+    }
+
+    function clearHistory() {
+      localStorage.removeItem('ai_history');
+      renderHistory();
+    }
+
+    // --- TỰ ĐỘNG KHÔI PHỤC ---
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedResults = localStorage.getItem('tx_results');
+      if (savedResults) {
+        inputEl.value = savedResults;
+        updateResults();
+      }
+      const savedWL = localStorage.getItem('win_lose');
+      if (savedWL) {
+        inputWinLoseEl.value = savedWL;
+        updateWinLose();
+      }
+      renderHistory();
+    });
+
+    inputEl.addEventListener('input', updateResults);
+    inputWinLoseEl.addEventListener('input', updateWinLose);
+  </script>
+</body>
